@@ -3,7 +3,9 @@ package sql
 
 import (
 	"database/sql"
+	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -119,11 +121,14 @@ var (
 	}
 )
 
+var debugQueriesRegexp = regexp.MustCompile(`[\t ]*[\n][\t ]*`)
+
 func (f flavor) translate(query string) string {
 	// TODO(ericchiang): Heavy cashing.
 	for _, r := range f.queryReplacers {
 		query = r.re.ReplaceAllString(query, r.with)
 	}
+	fmt.Printf("[SQL] %s\n", strings.TrimSpace(debugQueriesRegexp.ReplaceAllString(query, " ")))
 	return query
 }
 
