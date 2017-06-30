@@ -94,7 +94,7 @@ Dex determines the namespace it's running in by parsing the service account toke
 
 ## SQL
 
-Dex supports two flavors of SQL, SQLite3 and Postgres. MySQL and CockroachDB may be added at a later time.
+Dex supports three flavors of SQL: SQLite3, Postgres, and MySQL. CockroachDB may be added at a later time.
 
 Migrations are performed automatically on the first connection to the SQL server (it does not support rolling back). Because of this dex requires privileges to add and alter the tables for its database.
 
@@ -143,6 +143,38 @@ storage:
 ```
 
 The SSL "mode" corresponds to the `github.com/lib/pq` package [connection options][psql-conn-options]. If unspecified, dex defaults to the strictest mode "verify-full".
+
+### MySQL
+
+As with using Postgres, MySQL admins may want to dedicate a database to dex.
+
+```
+CREATE DATABASE dex_db;
+CREATE USER 'dex'@'%' IDENTIFIED BY '66964843358242dbaaa7778d8477c288';
+GRANT ALL PRIVILEGES ON dex_db.* TO 'dex'@'%';
+```
+
+An example config for MySQL setup using these values:
+
+```
+storage:
+  type: mysql
+  config:
+    database: dex_db
+    host: localhost
+    port: 3306
+    user: dex
+    password: 66964843358242dbaaa7778d8477c288
+```
+
+In addition to using TCP connections, dex can connect via a unix socket.
+
+```
+storage:
+  type: mysql
+  config:
+    unix: /tmp/mysql.sock
+```
 
 ## Adding a new storage options
 
