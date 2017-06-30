@@ -92,10 +92,24 @@ var (
 		},
 	}
 
-	// Incomplete.
 	flavorMySQL = flavor{
 		queryReplacers: []replacer{
 			{bindRegexp, "?"},
+			// Translate for booleans to tinyints.
+			{matchLiteral("true"), "1"},
+			{matchLiteral("false"), "0"},
+			{matchLiteral("boolean"), "tinyint(1)"},
+			// Translate other types.
+			{matchLiteral("bytea"), "blob"},
+			{matchLiteral("timestamptz"), "timestamp"},
+			{matchLiteral("redirect_uri text"), "redirect_uri varchar(511)"},
+			{matchLiteral("text"), "varchar(255)"},
+			// Translate table names ("keys" is a MySQL reserved keyword).
+			{matchLiteral("keys"), "storage_keys"},
+			// MySQL's timestamp type range starts at 1970-01-01 00:00:01.000000
+			{matchLiteral("0001-01-01 00:00:00 UTC"), "1970-01-01 00:00:01"},
+			// MySQL Timezone is set to UTC.
+			{matchLiteral("UTC"), ""},
 		},
 	}
 
