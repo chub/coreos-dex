@@ -1,9 +1,5 @@
 # dex - A federated OpenID Connect provider
 
-[![Travis](https://api.travis-ci.org/dexidp/dex.svg)](https://travis-ci.org/dexidp/dex)
-[![GoDoc](https://godoc.org/github.com/dexidp/dex?status.svg)](https://godoc.org/github.com/dexidp/dex)
-[![Go Report Card](https://goreportcard.com/badge/github.com/dexidp/dex)](https://goreportcard.com/report/github.com/dexidp/dex)
-
 ![logo](Documentation/logos/dex-horizontal-color.png)
 
 Dex is an identity service that uses [OpenID Connect][openid-connect] to drive authentication for other apps.
