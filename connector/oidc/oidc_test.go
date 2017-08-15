@@ -1,7 +1,7 @@
 package oidc
 
 import (
-	"github.com/coreos/dex/connector"
+	"github.com/chub/coreos-dex/connector"
 	"github.com/sirupsen/logrus"
 	"net/url"
 	"os"

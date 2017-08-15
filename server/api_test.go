@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coreos/dex/api"
-	"github.com/coreos/dex/server/internal"
-	"github.com/coreos/dex/storage"
-	"github.com/coreos/dex/storage/memory"
+	"github.com/chub/coreos-dex/api"
+	"github.com/chub/coreos-dex/server/internal"
+	"github.com/chub/coreos-dex/storage"
+	"github.com/chub/coreos-dex/storage/memory"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
