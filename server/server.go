@@ -18,14 +18,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 
-	"github.com/coreos/dex/connector"
-	"github.com/coreos/dex/connector/github"
-	"github.com/coreos/dex/connector/gitlab"
-	"github.com/coreos/dex/connector/ldap"
-	"github.com/coreos/dex/connector/mock"
-	"github.com/coreos/dex/connector/oidc"
-	"github.com/coreos/dex/connector/saml"
-	"github.com/coreos/dex/storage"
+	"github.com/chub/coreos-dex/connector"
+	"github.com/chub/coreos-dex/connector/github"
+	"github.com/chub/coreos-dex/connector/gitlab"
+	"github.com/chub/coreos-dex/connector/ldap"
+	"github.com/chub/coreos-dex/connector/mock"
+	"github.com/chub/coreos-dex/connector/oidc"
+	"github.com/chub/coreos-dex/connector/saml"
+	"github.com/chub/coreos-dex/storage"
 )
 
 // LocalConnector is the local passwordDB connector which is an internal

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/dex/storage"
-	"github.com/coreos/dex/storage/kubernetes/k8sapi"
+	"github.com/chub/coreos-dex/storage"
+	"github.com/chub/coreos-dex/storage/kubernetes/k8sapi"
 	"github.com/sirupsen/logrus"
 )
 

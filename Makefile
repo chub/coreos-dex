@@ -1,6 +1,6 @@
 PROJ=dex
-ORG_PATH=github.com/coreos
-REPO_PATH=$(ORG_PATH)/$(PROJ)
+ORG_PATH=github.com/chub
+REPO_PATH=github.com/chub/coreos-dex
 export PATH := $(PWD)/bin:$(PATH)
 
 VERSION ?= $(shell ./scripts/git-version)

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/coreos/dex/connector"
+	"github.com/chub/coreos-dex/connector"
 	"github.com/sirupsen/logrus"
 )
 
