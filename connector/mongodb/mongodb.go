@@ -1,0 +1,253 @@
+// The mongodb package authenticates against a mongodb collection.
+//
+// Caution: This is not a general purpose plugin as the hash used is:
+// bcrypt(rounds=[10,12], sha256(plaintext password)), which, although commonly
+// used in web frontends, is not a standard.  At the moment, this is not
+// configurable.
+package mongodb
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+	"time"
+
+	"github.com/chub/coreos-dex/connector"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+)
+
+type Config struct {
+	DbUrl string `json:"dbUrl"`
+	ConnectTimeoutMs int `json:"connectTimeoutMs"` // optional
+	QueryTimeoutMs int `json:"queryTimeoutMs"` // optional
+	DatabaseName string `json:"databaseName"`
+	CollectionName string `json:"collectionName"`
+	UserIDField string `json:"userIDField"`
+	UsernameField string `json:"usernameField"`
+	EmailFields []string `json:"emailFields"` // optional
+	PasswordField string `json:"passwordField"`
+}
+
+type mongoDocument struct {
+	Extra bson.M `bson:",inline"`
+}
+
+type mongoConnector struct {
+	logger     logrus.FieldLogger
+	session    *mgo.Session
+	collection *mgo.Collection
+	config     *Config
+}
+
+var (
+	ErrDatabaseIsGone = errors.New("Database is not reachable or did not respond to a ping")
+)
+
+// Returns values of nested fields from unstructured bson objects.
+func getFieldAsString(root bson.M, field string) (string, bool) {
+	node := root
+
+	var ok bool
+	fields := strings.Split(field, ".")
+
+	for i, f := range fields {
+		if i == len(fields)-1 {
+			stringNode, ok := node[f].(string)
+			if ok {
+				return stringNode, true
+			} else {
+				return "", false
+			}
+		} else {
+			node, ok = node[f].(bson.M)
+			if !ok {
+				return "", false
+			}
+		}
+	}
+
+	// Did not find the element
+	return "", false
+}
+
+func (c *Config) Open(logger logrus.FieldLogger) (connector.Connector, error) {
+	// Validate configuration
+	if c.DbUrl == "" {
+		return nil, errors.New("dbUrl must not be empty")
+	}
+
+	if c.DatabaseName == "" {
+		return nil, errors.New("databaseName must not be empty")
+	}
+
+	if c.CollectionName == "" {
+		return nil, errors.New("collectionName must not be empty")
+	}
+
+	if c.UserIDField == "" {
+		return nil, errors.New("usernameIDField must not be empty")
+	}
+
+	if c.UsernameField == "" {
+		return nil, errors.New("usernameField must not be empty")
+	}
+
+	if c.PasswordField == "" {
+		return nil, errors.New("passwordField must not be empty")
+	}
+
+	// Connect to the database, 10 second timeout (mgo default)
+	connectTimeout := time.Duration(10) * time.Millisecond
+	if c.ConnectTimeoutMs != 0 {
+		connectTimeout = time.Duration(c.ConnectTimeoutMs) * time.Millisecond
+		logger.Infof("Setting mongodb connect timeout to %v", connectTimeout)
+	}
+	session, err := mgo.DialWithTimeout(c.DbUrl, connectTimeout)
+	if err != nil {
+		logger.Errorf("Failed to connect to mongo database with URI \"%s\" %v", c.DbUrl, err)
+		return nil, err
+	}
+
+	// Set query timeout, if defined
+	if c.QueryTimeoutMs != 0 {
+		queryTimeout := time.Duration(c.QueryTimeoutMs) * time.Millisecond
+		logger.Infof("Setting mongodb query timeout to %v", queryTimeout)
+		session.SetSocketTimeout(queryTimeout)
+	}
+
+	// Set the read mode (reading from secondaries are okay)
+	session.SetMode(mgo.Eventual, true)
+
+	// Switch to the collection
+	collection := session.DB(c.DatabaseName).C(c.CollectionName)
+
+	// Create internal state struct
+	m := mongoConnector {
+		logger: logger,
+		session: session,
+		collection: collection,
+		config: c,
+	}
+
+	return &m, nil
+}
+
+func (c *mongoConnector) fetchMongoUser(username string) (mongoDocument, error) {
+	document := mongoDocument{}
+
+	// Trim leading and trailing spaces
+	username = strings.TrimSpace(username)
+
+	// Expression to search specific fields with
+	searchFilter := bson.M{"$regex": bson.RegEx{
+		// TODO: Properly escape this regex. "^" + re.Escape(username) + "$"
+		Pattern: "^" + username + "$",
+		Options: "i",
+	}}
+
+	// Check the server is up
+	if err := c.session.Ping(); err != nil {
+		c.logger.Errorf("Unable to reach server: %v", err)
+		return document, ErrDatabaseIsGone
+	}
+
+	// Search for the username (case-insensitive)
+	err := c.collection.Find(bson.M{c.config.UsernameField: searchFilter}).One(&document)
+	if err == nil {
+		// Found the user by username
+		return document, nil
+	}
+
+	// Search for the user using the email fields in the order they were defined (case-insensitive)
+	for _, emailField := range c.config.EmailFields {
+		err := c.collection.Find(bson.M{emailField: searchFilter}).One(&document)
+		if err == nil {
+			// Found the user by one of the email fields.
+			return document, nil
+		}
+	}
+
+	// We did not find the user
+	return document, nil
+}
+
+func (c *mongoConnector) findUser(input string) (connector.Identity, mongoDocument, error) {
+	var err error
+	var document mongoDocument
+
+	if document, err = c.fetchMongoUser(input); err != nil {
+		c.logger.Infof("Unable to fetch user from mongo (%s) %v", input, err)
+		return connector.Identity{}, document, err
+	}
+
+	// Fill in the identity
+	var email string
+	var emailVerified, ok bool
+	for _, emailField := range c.config.EmailFields {
+		if email, ok = getFieldAsString(document.Extra, emailField); ok {
+			emailVerified = true
+			break;
+		}
+	}
+
+	userId, _ := getFieldAsString(document.Extra, c.config.UserIDField)
+	username, _ := getFieldAsString(document.Extra, c.config.UsernameField)
+	identity := connector.Identity{
+		UserID: userId,
+		Username: username,
+		Email: email,
+		EmailVerified: emailVerified,
+	}
+
+	return identity, document, nil
+}
+
+func (c *mongoConnector) Login(ctx context.Context, s connector.Scopes, username, password string) (identity connector.Identity, validPass bool, err error) {
+	if username == "" {
+		return identity, false, nil
+	}
+
+	if password == "" {
+		return identity, false, nil
+	}
+
+	identity, result, err := c.findUser(username)
+	if err != nil {
+		if err == ErrDatabaseIsGone {
+			return identity, false, err
+		} else {
+			c.logger.Infof("Unable to fetch user data (%s) %v", username, err)
+			return identity, false, nil
+		}
+	}
+
+	bcryptPassword, ok := getFieldAsString(result.Extra, c.config.PasswordField)
+	if !ok {
+		c.logger.Infof("Unable to verify user (%s); unable to read bcrypt field", username)
+		return identity, false, nil
+	}
+
+	if bcryptPassword == "" {
+		c.logger.Infof("Unable to verify user (%s); empty/unset bcrypt field", username)
+		return identity, false, errors.New(fmt.Sprintf("Bcrypt password not available for user \"%s\"", username))
+	}
+
+	hashedPassword := []byte(bcryptPassword)
+	sum := sha256.New()
+	io.WriteString(sum, password)
+	shaPassword := sum.Sum(nil)
+	if err = bcrypt.CompareHashAndPassword(hashedPassword, []byte(hex.EncodeToString(shaPassword))); err != nil {
+		c.logger.Infof("Unable to verify user (%s); password does not match hash: %v", username, err)
+		return identity, false, nil
+	}
+
+	c.logger.Infof("Verified user (%s) as %v", username, identity)
+	return identity, true, nil
+}

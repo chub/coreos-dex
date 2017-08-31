@@ -23,6 +23,7 @@ import (
 	"github.com/chub/coreos-dex/connector/gitlab"
 	"github.com/chub/coreos-dex/connector/ldap"
 	"github.com/chub/coreos-dex/connector/mock"
+	"github.com/chub/coreos-dex/connector/mongodb"
 	"github.com/chub/coreos-dex/connector/oidc"
 	"github.com/chub/coreos-dex/connector/saml"
 	"github.com/chub/coreos-dex/storage"
@@ -390,6 +391,7 @@ var ConnectorsConfig = map[string]func() ConnectorConfig{
 	"mockCallback": func() ConnectorConfig { return new(mock.CallbackConfig) },
 	"mockPassword": func() ConnectorConfig { return new(mock.PasswordConfig) },
 	"ldap":         func() ConnectorConfig { return new(ldap.Config) },
+	"mongodb":      func() ConnectorConfig { return new(mongodb.Config) },
 	"github":       func() ConnectorConfig { return new(github.Config) },
 	"gitlab":       func() ConnectorConfig { return new(gitlab.Config) },
 	"oidc":         func() ConnectorConfig { return new(oidc.Config) },
