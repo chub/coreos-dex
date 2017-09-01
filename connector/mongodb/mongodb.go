@@ -24,8 +24,13 @@ import (
 )
 
 type Config struct {
-	DbUrl string `json:"dbUrl"`
+	DbHosts []string `json:"dbHosts"`
+	DbUsername string `json:"dbUsername"` // optional
+	DbPassword string `json:"dbPassword"` // optional
+	DbAuthSource string `json:"dbAuthSource"` // optional
+	DbAuthMechanism string `json:"dbAuthMechanism"` // optional
 	ConnectTimeoutMs int `json:"connectTimeoutMs"` // optional
+	DbDirect bool `json:"dbDirect"` // optional
 	QueryTimeoutMs int `json:"queryTimeoutMs"` // optional
 	DatabaseName string `json:"databaseName"`
 	CollectionName string `json:"collectionName"`
@@ -79,8 +84,8 @@ func getFieldAsString(root bson.M, field string) (string, bool) {
 
 func (c *Config) Open(logger logrus.FieldLogger) (connector.Connector, error) {
 	// Validate configuration
-	if c.DbUrl == "" {
-		return nil, errors.New("dbUrl must not be empty")
+	if len(c.DbHosts) == 0 {
+		return nil, errors.New("dbHosts must not be empty")
 	}
 
 	if c.DatabaseName == "" {
@@ -103,15 +108,26 @@ func (c *Config) Open(logger logrus.FieldLogger) (connector.Connector, error) {
 		return nil, errors.New("passwordField must not be empty")
 	}
 
+	logger.Infof("Attempting to connect to mongodb")
+
 	// Connect to the database, 10 second timeout (mgo default)
 	connectTimeout := time.Duration(10) * time.Millisecond
 	if c.ConnectTimeoutMs != 0 {
 		connectTimeout = time.Duration(c.ConnectTimeoutMs) * time.Millisecond
 		logger.Infof("Setting mongodb connect timeout to %v", connectTimeout)
 	}
-	session, err := mgo.DialWithTimeout(c.DbUrl, connectTimeout)
+	mongoDialInfo := &mgo.DialInfo {
+		Addrs: c.DbHosts,
+		Database: c.DbAuthSource,
+		Username: c.DbUsername,
+		Password: c.DbPassword,
+		Timeout: connectTimeout,
+		Mechanism: c.DbAuthMechanism,
+		Direct: c.DbDirect,
+	}
+	session, err := mgo.DialWithInfo(mongoDialInfo)
 	if err != nil {
-		logger.Errorf("Failed to connect to mongo database with URI \"%s\" %v", c.DbUrl, err)
+		logger.Errorf("Failed to connect to mongo database. %v", err)
 		return nil, err
 	}
 
@@ -124,6 +140,13 @@ func (c *Config) Open(logger logrus.FieldLogger) (connector.Connector, error) {
 
 	// Set the read mode (reading from secondaries are okay)
 	session.SetMode(mgo.Eventual, true)
+
+	// Check the connection
+	if err := session.Ping(); err != nil {
+		logger.Errorf("Unable to completely connect to server: %v", err)
+		return nil, err
+	}
+	logger.Infof("Successfully connected to mongodb")
 
 	// Switch to the collection
 	collection := session.DB(c.DatabaseName).C(c.CollectionName)
@@ -183,7 +206,6 @@ func (c *mongoConnector) findUser(input string) (connector.Identity, mongoDocume
 	var document mongoDocument
 
 	if document, err = c.fetchMongoUser(input); err != nil {
-		c.logger.Infof("Unable to fetch user from mongo (%s) %v", input, err)
 		return connector.Identity{}, document, err
 	}
 
