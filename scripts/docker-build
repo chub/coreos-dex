@@ -2,6 +2,11 @@
 
 mkdir -p _output/bin
 
+if [[ -e cid ]]; then
+    sudo docker rm $( cat cid )
+    sudo rm -f cid
+fi
+
 sudo docker run \
     --cidfile=cid \
     -v $PWD:/go/src/github.com/chub/coreos-dex:ro \
