@@ -198,7 +198,7 @@ func (c *mongoConnector) fetchMongoUser(username string) (mongoDocument, error) 
 	}
 
 	// We did not find the user
-	return document, nil
+	return document, errors.New("User not found in database")
 }
 
 func (c *mongoConnector) findUser(input string) (connector.Identity, mongoDocument, error) {
