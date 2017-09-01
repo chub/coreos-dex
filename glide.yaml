@@ -145,3 +145,7 @@ import:
   version: 4cd0dd976db869f817248477718071a28e978df0
 - package: github.com/jonboulle/clockwork
   version: bcac9884e7502bb2b474c0339d889cb981a2f27f
+
+# MongoDB drivers
+- package: gopkg.in/mgo.v2
+  version: 3f83fa5005286a7fe593b055f0d7771a7dce4655

@@ -1,5 +1,5 @@
-hash: e83f57fea75d4a509d812fab12785599fdab16db950cc3738cec59a6c73f93af
-updated: 2017-07-25T13:48:39.899190846-07:00
+hash: 48c7461686f20286f6d28f2afa76972b9c69300d97ffc8a5c38d4fc8f2cd1fe0
+updated: 2017-09-01T10:34:40.178716915-07:00
 imports:
 - name: github.com/beevik/etree
   version: 4cd0dd976db869f817248477718071a28e978df0
@@ -122,6 +122,13 @@ imports:
   version: 4e86f4367175e39f69d9358a5f17b4dda270378d
 - name: gopkg.in/ldap.v2
   version: 0e7db8eb77695b5a952f0e5d78df9ab160050c73
+- name: gopkg.in/mgo.v2
+  version: 3f83fa5005286a7fe593b055f0d7771a7dce4655
+  subpackages:
+  - bson
+  - internal/json
+  - internal/sasl
+  - internal/scram
 - name: gopkg.in/square/go-jose.v2
   version: 8c5257b2f658f86d174ae68c6a592eaf6a9608d9
   subpackages:
