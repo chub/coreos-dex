@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,10 +60,12 @@ var (
 func getFieldAsString(root bson.M, field string) (string, bool) {
 	node := root
 
-	var ok bool
 	fields := strings.Split(field, ".")
 
-	for i, f := range fields {
+	for i := 0; i < len(fields); i++ {
+		f := fields[i]
+
+		// Check if we're on our last leg.
 		if i == len(fields)-1 {
 			stringNode, ok := node[f].(string)
 			if ok {
@@ -70,11 +73,36 @@ func getFieldAsString(root bson.M, field string) (string, bool) {
 			} else {
 				return "", false
 			}
-		} else {
-			node, ok = node[f].(bson.M)
-			if !ok {
+		} else if list, ok := node[f].([]interface{}); !!ok {
+			// Check if we may be traversing into an array
+			if i >= len(fields) {
+				// Nope, we're no good here.
 				return "", false
 			}
+
+			// Check if the next field is actually a numerical index.
+			var index int
+			var err error
+			if index, err = strconv.Atoi(fields[i+1]); err != nil {
+				// Nope, it wasn't a numerical index.
+				return "", false
+			}
+
+			if index >= len(list) {
+				// Nope, the index is out of bounds in this array.
+				return "", false
+			}
+
+			if node, ok = list[index].(bson.M); !ok {
+				// Nope, we weren't able to deference to an expected object.
+				// TODO: We may face nested arrays here, but that's for some time in the future.
+				return "", false
+			}
+
+			// Advance the counter since we also consumed the array index field.
+			i++
+		} else if node, ok = node[f].(bson.M); !ok {
+			return "", false
 		}
 	}
 
