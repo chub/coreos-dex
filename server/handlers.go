@@ -465,15 +465,19 @@ func (s *Server) sendCodeResponse(w http.ResponseWriter, r *http.Request, authRe
 		return
 	}
 
+	fmt.Println("sendCodeResponse:", authReq.ID, "Deleting AuthRequest:", authReq.ID)
 	if err := s.storage.DeleteAuthRequest(authReq.ID); err != nil {
 		if err != storage.ErrNotFound {
+			fmt.Println("sendCodeResponse:", authReq.ID, "Failed to delete AuthRequest. 1", err)
 			s.logger.Errorf("Failed to delete authorization request: %v", err)
 			s.renderError(w, http.StatusInternalServerError, "Internal server error.")
 		} else {
+			fmt.Println("sendCodeResponse:", authReq.ID, "Failed to delete AuthRequest. 2", err)
 			s.renderError(w, http.StatusBadRequest, "User session error.")
 		}
 		return
 	}
+	fmt.Println("sendCodeResponse:", authReq.ID, "Deleted AuthRequest")
 	u, err := url.Parse(authReq.RedirectURI)
 	if err != nil {
 		s.renderError(w, http.StatusInternalServerError, "Invalid redirect URI.")
@@ -496,6 +500,7 @@ func (s *Server) sendCodeResponse(w http.ResponseWriter, r *http.Request, authRe
 		accessToken = storage.NewID()
 	)
 
+	fmt.Println("sendCodeResponse:", authReq.ID, "Processing responseTypes:", authReq.ResponseTypes)
 	for _, responseType := range authReq.ResponseTypes {
 		switch responseType {
 		case responseTypeCode:
@@ -510,6 +515,7 @@ func (s *Server) sendCodeResponse(w http.ResponseWriter, r *http.Request, authRe
 				RedirectURI:   authReq.RedirectURI,
 				ConnectorData: authReq.ConnectorData,
 			}
+			fmt.Println("sendCodeResponse:", authReq.ID, " -> ", code.ID)
 			if err := s.storage.CreateAuthCode(code); err != nil {
 				s.logger.Errorf("Failed to create auth code: %v", err)
 				s.renderError(w, http.StatusInternalServerError, "Internal server error.")

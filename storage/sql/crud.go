@@ -135,16 +135,21 @@ func (c *conn) CreateAuthRequest(a storage.AuthRequest) error {
 
 func (c *conn) UpdateAuthRequest(id string, updater func(a storage.AuthRequest) (storage.AuthRequest, error)) error {
 	return c.ExecTx(func(tx *trans) error {
+		fmt.Printf("UpdateAuthRequest: %s starting\n", id)
 		r, err := getAuthRequest(tx, id)
 		if err != nil {
+			fmt.Printf("UpdateAuthRequest: %s error 1 %v\n", id, err)
 			return err
 		}
 
+		fmt.Printf("UpdateAuthRequest: %s Got AuthRequest %v\n", id, r)
 		a, err := updater(r)
 		if err != nil {
+			fmt.Printf("UpdateAuthRequest: %s error 2 %v\n", id, err)
 			return err
 		}
-		_, err = tx.Exec(`
+		fmt.Printf("UpdateAuthRequest: %s updater rv %v\n", id, a)
+		b, err := tx.Exec(`
 			update auth_request
 			set
 				client_id = $1, response_types = $2, scopes = $3, redirect_uri = $4,
@@ -164,8 +169,10 @@ func (c *conn) UpdateAuthRequest(id string, updater func(a storage.AuthRequest) 
 			a.Expiry, r.ID,
 		)
 		if err != nil {
+			fmt.Printf("UpdateAuthRequest: %s error 3 %v\n", id, err)
 			return fmt.Errorf("update auth request: %v", err)
 		}
+		fmt.Printf("UpdateAuthRequest: %s Exec rv %v\n", id, b)
 		return nil
 	})
 
@@ -201,7 +208,8 @@ func getAuthRequest(q querier, id string) (a storage.AuthRequest, err error) {
 }
 
 func (c *conn) CreateAuthCode(a storage.AuthCode) error {
-	_, err := c.Exec(`
+	fmt.Printf("CreateAuthCode: %s creating AuthCode: %v\n", a.ID, a)
+	rv, err := c.Exec(`
 		insert into auth_code (
 			id, client_id, scopes, nonce, redirect_uri,
 			claims_user_id, claims_username,
@@ -215,13 +223,36 @@ func (c *conn) CreateAuthCode(a storage.AuthCode) error {
 		a.Claims.Username, a.Claims.Email, a.Claims.EmailVerified, encoder(a.Claims.Groups),
 		a.ConnectorID, a.ConnectorData, a.Expiry,
 	)
+	lastInsertId, _ := rv.LastInsertId()
+	rowsAffected, _ := rv.RowsAffected()
+	fmt.Printf("CreateAuthCode: %s insert rv: %v %v\n", a.ID, lastInsertId, rowsAffected)
+
+	warnings, err2 := c.Query("SHOW WARNINGS")
+	defer warnings.Close()
+	if err2 != nil {
+		fmt.Printf("CreateAuthCode: %s Unable to fetch warnings %v\n", a.ID, err2)
+	} else {
+		fmt.Printf("CreateAuthCode: %s Warnings\n", a.ID)
+		for warnings.Next() {
+			var level, code, message string
+			err3 := warnings.Scan(&level, &code, &message)
+			if err3 != nil {
+				fmt.Printf("CreateAuthCode: %s Could not parse individual warning\n", a.ID)
+			} else {
+				fmt.Printf("CreateAuthCode: %s Warning %v %v %s\n", a.ID, level, code, message)
+			}
+		}
+	}
 
 	if err != nil {
 		if c.alreadyExistsCheck(err) {
+			fmt.Printf("CreateAuthCode: %s error 1, %v\n", a.ID, err)
 			return storage.ErrAlreadyExists
 		}
-		return fmt.Errorf("insert auth code: %v", err)
+		fmt.Printf("CreateAuthCode: %s error 2, %v\n", a.ID, err)
+		return fmt.Errorf("insert auth code: %v\n", err)
 	}
+	fmt.Printf("CreateAuthCode: %s success!\n", a.ID)
 	return nil
 }
 
