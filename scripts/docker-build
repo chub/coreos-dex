@@ -11,7 +11,7 @@ sudo docker run \
     --cidfile=cid \
     -v $PWD:/go/src/github.com/chub/coreos-dex:ro \
     -w /go/src/github.com/chub/coreos-dex \
-    golang:1.8.3-alpine \
+    golang:1.8.4-alpine \
     /bin/sh -x -c \
     'apk add --no-cache --update alpine-sdk && make release-binary'
 
