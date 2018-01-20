@@ -341,6 +341,7 @@ func (c *conn) ListRefreshTokens() ([]storage.RefreshToken, error) {
 			token, created_at, last_used
 		from refresh_token;
 	`)
+	defer rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("query: %v", err)
 	}
@@ -518,6 +519,7 @@ func (c *conn) ListClients() ([]storage.Client, error) {
 			id, secret, redirect_uris, trusted_peers, public, name, logo_url
 		from client;
 	`)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -614,6 +616,7 @@ func (c *conn) ListPasswords() ([]storage.Password, error) {
 			email, hash, username, user_id
 		from password;
 	`)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -798,6 +801,7 @@ func (c *conn) ListConnectors() ([]storage.Connector, error) {
 			id, type, name, resource_version, config
 		from connector;
 	`)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
