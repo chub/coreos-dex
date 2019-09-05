@@ -2,6 +2,7 @@ module github.com/dexidp/dex
 
 require (
 	github.com/beevik/etree v1.1.0
+	github.com/chub/coreos-dex v0.0.0-20180120012636-723643f9ab30
 	github.com/coreos/bbolt v1.3.3 // indirect
 	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/coreos/go-oidc v2.0.0+incompatible
@@ -57,5 +58,6 @@ require (
 	google.golang.org/grpc v1.22.1
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
 	gopkg.in/ldap.v2 v2.5.1
+	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 	gopkg.in/square/go-jose.v2 v2.3.1
 )
